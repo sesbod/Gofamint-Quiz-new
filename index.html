@@ -468,7 +468,7 @@
             e.preventDefault();
             
             if (!quizData.adminEmail || quizData.adminEmail.includes("your-email@example.com")) {
-                alert("Error: This quiz has not been properly configured by the administrator (missing recipient email).");
+                alert("⚠️ CONFIGURATION ERROR\nThe administrator has not set a valid recipient email. Please contact your teacher.");
                 return;
             }
 
@@ -478,37 +478,25 @@
             
             // Loading state
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> SUBMITTING...';
+            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> SENDING...';
 
+            // Prepare Data
             const formData = new FormData(form);
-            const payload = {};
-            formData.forEach((value, key) => {
-                // Handle multiple values for the same key if needed (though not used here)
-                if (payload[key]) {
-                    if (Array.isArray(payload[key])) {
-                        payload[key].push(value);
-                    } else {
-                        payload[key] = [payload[key], value];
-                    }
-                } else {
-                    payload[key] = value;
-                }
-            });
-            
-            // Add FormSubmit configurations
-            payload['_subject'] = `Sunday School Quiz: ${quizData.lessonTitle} - ${payload['Student_Name']}`;
-            payload['_template'] = 'table';
-            payload['Quiz_Lesson'] = quizData.lessonTitle;
-            payload['Quiz_Date'] = quizData.lessonDate;
+
+            // Critical FormSubmit Configurations
+            formData.append('_subject', `Sunday School Quiz: ${quizData.lessonTitle} [${formData.get('Student_Name')}]`);
+            formData.append('_template', 'table');
+            formData.append('_captcha', 'false'); // Disable captcha for smoother submission
+            formData.append('Lesson_Title', quizData.lessonTitle);
+            formData.append('Submission_Date', new Date().toLocaleString());
 
             try {
                 const response = await fetch(`https://formsubmit.co/ajax/${quizData.adminEmail}`, {
                     method: "POST",
+                    body: formData,
                     headers: {
-                        "Content-Type": "application/json",
-                        "Accept": "application/json"
-                    },
-                    body: JSON.stringify(payload)
+                        'Accept': 'application/json'
+                    }
                 });
 
                 if (response.ok) {
@@ -516,12 +504,35 @@
                     document.getElementById('success-banner').classList.remove('hidden');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || "Failed to send answers.");
+                    const errorMsg = await response.text();
+                    throw new Error(errorMsg);
                 }
             } catch (error) {
                 console.error("Submission Error:", error);
-                alert("❌ SUBMISSION FAILED\n\nPossible reasons:\n1. No internet connection.\n2. The admin email has not been confirmed.\n3. Browser blocked the request.\n\nPLEASE TAKE A SCREENSHOT OF YOUR ANSWERS SO YOU DON'T LOSE THEM.");
+                
+                // FALLBACK METHOD: Standard Form Submission
+                if (confirm("Background submission failed (possibly due to browser security or unconfirmed email).\n\nWould you like to use the secondary secure submission method?")) {
+                    form.action = `https://formsubmit.co/${quizData.adminEmail}`;
+                    form.method = "POST";
+                    
+                    // Add hidden fields for the traditional form post
+                    const addHidden = (name, val) => {
+                        let input = form.querySelector(`input[name="${name}"]`);
+                        if (!input) {
+                            input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = name;
+                            form.appendChild(input);
+                        }
+                        input.value = val;
+                    };
+
+                    addHidden('_captcha', 'false');
+                    addHidden('_subject', `Sunday School Quiz: ${quizData.lessonTitle} [${formData.get('Student_Name')}]`);
+                    addHidden('_template', 'table');
+                    
+                    form.submit();
+                }
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalBtnContent;
