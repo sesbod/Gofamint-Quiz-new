@@ -463,11 +463,12 @@
                 alert("🚀 PUBLISHED SUCCESSFULLY!\n\n1. The student quiz link has been copied to your clipboard.\n2. Share this link with your students.\n3. IMPORTANT: The first time you receive a submission, you must click 'Confirm' in the email from FormSubmit.");
             });
         }
+
 async function handleStudentFormSubmit(e) {
     e.preventDefault();
     
-    if (!quizData.adminEmail || quizData.adminEmail.includes("your-email@example.com")) {
-        alert("⚠️ CONFIGURATION ERROR\nThe administrator has not set a valid recipient email. Please contact your teacher.");
+    if (!quizData.accessKey || quizData.accessKey.includes("8677b167-c4c3-4638-92f4-e4d2bae733ee")) {
+        alert("⚠️ CONFIGURATION ERROR\nThe administrator has not set a valid Web3Forms access key. Please contact your teacher.");
         return;
     }
 
@@ -494,55 +495,34 @@ async function handleStudentFormSubmit(e) {
     const studentName = studentNameInput ? studentNameInput.value : 'Student';
     const subject = `Sunday School Quiz: ${quizData.lessonTitle} [${studentName}]`;
     
-    setHiddenField('_subject', subject);
-    setHiddenField('_template', 'table');
-    setHiddenField('_captcha', 'false');
-    // Crucial: Redirects user back to your quiz page if direct submission fallback occurs
-    setHiddenField('_next', window.location.href); 
+    // Web3Forms specific configuration fields
+    setHiddenField('access_key', quizData.accessKey);
+    setHiddenField('subject', subject);
+    setHiddenField('from_name', 'Sunday School Quiz App');
     setHiddenField('Lesson_Title', quizData.lessonTitle);
     setHiddenField('Submission_Date', new Date().toLocaleString());
 
-    // Try AJAX with automatic retry for transient Error 522 spikes
-    let success = false;
-    const maxRetries = 2;
+    try {
+        const response = await fetch("https://api.web3forms.com/submit", {
+            method: "POST",
+            body: new FormData(form),
+            headers: { 'Accept': 'application/json' }
+        });
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            const response = await fetch(`https://formsubmit.co/ajax/${quizData.adminEmail}`, {
-                method: "POST",
-                body: new FormData(form),
-                headers: { 'Accept': 'application/json' }
-            });
+        const result = await response.json();
 
-            if (response.ok) {
-                success = true;
-                break;
-            } else if (response.status === 522 || response.status >= 500) {
-                if (attempt < maxRetries) {
-                    await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds before retry
-                }
-            } else {
-                throw new Error("Server error " + response.status);
-            }
-        } catch (error) {
-            console.warn(`Attempt ${attempt} failed:`, error);
-        }
-    }
-
-    if (success) {
-        form.classList.add('hidden');
-        document.getElementById('success-banner').classList.remove('hidden');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-        // Fallback to direct HTML submission if AJAX persistently fails
-        if (confirm("The mail server is responding slowly (Error 522).\n\nClick OK to submit via secure direct redirect.")) {
-            form.action = `https://formsubmit.co/${quizData.adminEmail}`;
-            form.method = "POST";
-            form.submit();
+        if (response.ok && result.success) {
+            form.classList.add('hidden');
+            document.getElementById('success-banner').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalBtnContent;
+            throw new Error(result.message || "Failed to submit form.");
         }
+    } catch (error) {
+        console.error("Submission Error:", error);
+        alert("❌ Submission failed: " + error.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnContent;
     }
 }
 
