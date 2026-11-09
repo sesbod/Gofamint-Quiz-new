@@ -185,9 +185,6 @@
                         <button onclick="saveAdminInputsToState(); alert('Changes saved successfully!')" class="px-6 py-3 bg-slate-900 hover:bg-black text-white text-xs font-black rounded-xl shadow-xl flex items-center gap-2">
                             <i class="fa-solid fa-floppy-disk"></i> SAVE DATA
                         </button>
-                        <button onclick="exportQuizJSON()" class="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black rounded-xl border border-slate-300 flex items-center gap-2">
-                            <i class="fa-solid fa-download"></i> BACKUP (JSON)
-                        </button>
                     </div>
                     <button onclick="publishQuiz()" class="w-full sm:w-auto px-10 py-4 bg-gofamint-red hover:bg-red-700 text-white text-sm font-black rounded-2xl shadow-2xl shadow-red-500/30 flex items-center justify-center gap-3 uppercase tracking-tighter">
                         <i class="fa-solid fa-rocket"></i> PUBLISH & COPY LINK
@@ -531,6 +528,7 @@
         }
 
         function exportQuizJSON() {
+            // Function preserved for internal use if needed, but UI button removed
             saveAdminInputsToState();
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(quizData));
             const dl = document.createElement('a');
